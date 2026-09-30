@@ -1,0 +1,24 @@
+# Generated artifacts and local settings
+.build/
+build/
+CMakeUserPresets.json
+.vs/
+.idea/
+*.user
+*.suo
+client/**/Binaries/
+client/**/Intermediate/
+client/**/Saved/
+client/**/DerivedDataCache/
+client/**/*.sln
+# Credentials never belong in version control
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,19 @@
+{
+    "FileVersion": 3,
+    "EngineAssociation": "5.8",
+    "Category": "Games",
+    "Description": "Original draconic MMO client. Phase 0: build and module-load verification only.",
+    "Plugins": [
+        {
+            "Name": "AndroidFileServer",
+            "Enabled": false
+        }
+    ],
+    "Modules": [
+        {
+            "Name": "DraconicClient",
+            "Type": "Runtime",
+            "LoadingPhase": "Default"
+        }
+    ]
+}
