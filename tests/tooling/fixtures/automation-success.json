@@ -1,0 +1,21 @@
+{
+  "reportCreatedOn": "2026.09.30-08.43.43",
+  "succeeded": 1,
+  "succeededWithWarnings": 0,
+  "failed": 0,
+  "notRun": 0,
+  "inProcess": 0,
+  "totalDuration": 0.02,
+  "tests": [
+    {
+      "testDisplayName": "ClientModuleLoaded",
+      "fullTestPath": "Draconic.Foundation.ClientModuleLoaded",
+      "state": "Success",
+      "duration": 0.02,
+      "entries": [],
+      "warnings": 0,
+      "errors": 0,
+      "artifacts": []
+    }
+  ]
+}

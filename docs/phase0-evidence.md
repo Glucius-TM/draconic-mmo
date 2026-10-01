@@ -1,7 +1,7 @@
 # Evidencia de FASE 0
 
-Trabajo iniciado: **2026-09-29**. Revisión de cierre: **2026-09-30**.
-Repositorio local nuevo e independiente `draconic-mmo`.
+Trabajo iniciado: **2026-09-29**. Revisión de mejora: **2026-10-01**, fecha civil Europe/Madrid.
+Repositorio nuevo e independiente [Glucius-TM/draconic-mmo](https://github.com/Glucius-TM/draconic-mmo).
 Alcance: bootstrap, diagnóstico offline, build y diseño propuesto. Sin gameplay ni servidores online.
 
 ## Entorno comprobado
@@ -24,17 +24,24 @@ El CLI emite resultados JSON verificados, no registra el valor rechazado y decla
 
 - Configure Windows: completado correctamente.
 - Build Debug: completado correctamente.
-- CTest Debug: **12/12 aprobados**, 0 fallos.
+- CTest Debug: **20/20 aprobados**, 0 fallos.
 - Build Release: completado correctamente.
-- CTest Release: **12/12 aprobados**, 0 fallos.
+- CTest Release: **20/20 aprobados**, 0 fallos.
 - clang-format 19.1.5: seis archivos C++/headers comprobados con `--dry-run --Werror`, salida 0.
 - Diagnóstico Release: ejecución real con `config_valid`, `offline_validation` y `services_started=0`.
+- Build Release con `BUILD_TESTING=OFF`, instalación y ejecución de los archivos instalados: aprobados.
+- Rechazo de build dentro de fuente y de staging de prueba fuera del build: comprobados.
 
-CTest contiene 1 test unitario con 5 grupos de escenarios y 11 tests de CLI. No son 24 escenarios distintos por
+CTest contiene 1 test unitario con 5 grupos de escenarios, 18 tests de CLI y 1 de instalación. No son 40 tests distintos por
 ejecutarse también en Release. Se comprueban códigos de salida y contenido; las pruebas de `--help` y `--version`
 no dependen exclusivamente de una coincidencia de texto que podría ocultar un retorno fallido.
+Las ampliaciones verifican archivos de 16 KiB exactos, líneas de 256 bytes exactos/excedidas, CRLF, rechazo de BOM y
+caracteres de control, números de línea de error y rutas con espacios/Unicode. La prueba de instalación ejecuta el
+binario instalado con el ejemplo instalado y valida JSON/versión. No equivale a probar un paquete en un Windows limpio.
 
-Logs locales de build/test conservados en `.build/verification/` e ignorados por Git.
+Logs locales conservados e ignorados por Git:
+`.build/verification/phase0-hardening-windows-debug.log`, `phase0-hardening-windows-release.log`,
+`phase0-hardening-no-tests-install.log`, `phase0-hardening-in-source-rejection.log` y `phase0-hardening-install-guard.log`.
 Comandos reproducibles en [build-and-test.md](build-and-test.md).
 
 ## Cliente UE 5.8.3
@@ -45,7 +52,7 @@ Comandos reproducibles en [build-and-test.md](build-and-test.md).
 - El informe del test registra 0 errores y 0 warnings; el log confirma `TEST COMPLETE. EXIT CODE: 0`.
 - La ejecución headless usa `-nullrhi`: comprueba integración/carga del módulo, no renderizado.
 
-Evidencia final: `client/Saved/Logs/phase0-build-20260930.log`,
+Evidencia histórica del bootstrap: `client/Saved/Logs/phase0-build-20260930.log`,
 `client/Saved/Logs/phase0-automation-20260930-en.log` y
 `client/Saved/Automation/phase0-20260930-en/index.json`. Motor y datos generados no se versionan.
 
@@ -58,24 +65,45 @@ La causa es una inferencia respaldada por fuente/ejecución; el primer log no pe
 Se deshabilitó AndroidFileServer, ajeno al proyecto, y se usa `-nowrite` para evitar INI/tokens autogenerados.
 La investigación y límites se registran en [ue58-verification.md](ue58-verification.md).
 
+### Verificador reproducible de esta mejora
+
+`tools/unreal/verify.ps1` ejecutado con el motor real 5.8.3: build Editor y editor headless con **salida 0**;
+`Draconic.Foundation.ClientModuleLoaded` **Success**, informe fresco y log aceptados por el validador.
+Evidencia: `.build/unreal/20260930T221609Z-821f451563c94c3f93de980b9c2659d4/verification.json`,
+`build.stdout.log`, `automation.log` y `report/index.json`. El test se ejecutó entre 22:16:17 y 22:17:16 UTC
+del 2026-09-30 (2026-10-01 en Europe/Madrid). El alcance sigue siendo build/carga del módulo.
+
+El verificador rechaza informes ausentes, antiguos, corruptos, duplicados, de otro test, con contadores o eventos
+inconsistentes; rechaza errores de arranque aunque el test seleccionado tenga éxito y conserva logs al fallar.
+Los tests `tests/tooling/test-unreal-validation.ps1` prueban ese rechazo con fixtures sintéticos y procesos reales
+para códigos de salida y timeout. **35 comprobaciones aprobadas localmente**; no son tests del motor ni de gameplay.
+
+## GitHub y CI
+
+La entrega inicial se publicó en `main`, commit `d2db3d6498aa1f16953b73552727368eb051a212`; su árbol
+coincide exactamente con el commit local inicial `6434a7a`. La
+[ejecución inicial 36784219638](https://github.com/Glucius-TM/draconic-mmo/actions/runs/36784219638)
+tiene **7 jobs aprobados**: MSVC Debug/Release, GCC Debug/Release, Clang Debug/Release y ASan/UBSan.
+Esa ejecución corresponde a los **12 tests originales**, no acredita los 20 tests de esta mejora.
+
+La mejora se prepara en `phase0-hardening`, con evidencia de la nueva ejecución pendiente de publicación/verificación.
+Su workflow amplía la matriz con instalación sin tests en Windows/Linux y verificación de las herramientas UE sin motor,
+y conserva JUnit/logs. No hay job de compilación del motor UE en CI. La evidencia del motor sigue siendo local.
+
 ## Verificación de diseño y limpieza
 
-Revisión independiente de arquitectura, datos/protocolo, tests y CI. Se corrigieron: descripción de ejecución de CI,
-identidad federada OIDC, presupuesto GPU único de 13 ms, cálculo de margen de capacidad, disponibilidad de nombres
-no verificada y comprobación de códigos de salida de los tests CLI.
+Revisión de arquitectura, datos/protocolo, tests y CI. Se aclararon las dependencias de código frente al flujo de
+mensajes; autenticación OIDC frente a autorización local; serialización de mutaciones, renovación y reasignación de
+autoridad; barrera durable, colas y caducidad de rutas. La matriz A01–A07 son pruebas futuras, NO VERIFICADAS.
+La nueva matriz de [aceptación](phase0-acceptance.md) liga diez requisitos a entregables, responsables y evidencia.
 Las cifras de escala y rendimiento son propuestas, nunca resultados de carga. Las APIs utilizadas en el cliente
 tienen referencias oficiales UE 5.8 y contraste local en `ue58-verification.md`.
 
 ## No verificado o no implementado
 
-- Pipeline remoto de GitHub Actions, Linux GCC/Clang y ASan/UBSan: workflow configurado, no ejecutado en esta entrega.
+- Ejecución remota de las mejoras: pendiente de confirmar; ejecución del bootstrap acreditada arriba.
 - UE Game target, cooking, packaging, mapas, GPU/performance, navegación y reconciliación.
 - PostgreSQL/Redis reales, migraciones aplicadas, TLS/Protobuf, identidad, bots, carga y recuperación.
 - Sistemas de gameplay, contenido artístico, administración, despliegue y operación de producción.
-
-**GitHub:** no se creó repositorio remoto. El conector disponible permite trabajar con repositorios pero no ofrece
-una operación de creación; el navegador mostró la pantalla de inicio de sesión al intentar abrir el formulario de
-repositorio nuevo. No se introdujeron credenciales ni se modificó ningún repositorio remoto. La creación local sí
-está completada, sin remoto configurado. Publicación y CI remota quedan pendientes de acceso y nombre definitivo.
 
 La FASE 1 permanece pendiente de validación del usuario. La deuda detallada está en `technical-debt.md`.

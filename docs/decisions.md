@@ -1,6 +1,7 @@
 # Decisiones y alternativas — FASE 0
 
 Estado de arquitectura: propuesta pendiente. Solo los cimientos offline son implementación autorizada.
+Revisión: 2026-10-01. La petición de mejorar FASE 0 no acepta por sí misma las recomendaciones ni abre FASE 1.
 
 | ID | Opciones y trade-offs | Recomendación / estado |
 |---|---|---|
@@ -9,14 +10,25 @@ Estado de arquitectura: propuesta pendiente. Solo los cimientos offline son impl
 | D03 | TLS/TCP: interoperabilidad/madurez, bloqueo por pérdida. QUIC streams+datagramas: mejor aislamiento/pérdida, integración C++/UE y operación más complejas | **TLS 1.3/TCP en primera conexión**; gate de latencia/pérdida antes de movimiento para confirmar o pasar a QUIC |
 | D04 | Protobuf: evolución y tooling, parsing/asignaciones. FlatBuffers: acceso directo, verificación/layout y evolución más delicados | **Protobuf** inicialmente. FlatBuffers se reconsidera con perfiles; ningún formato desplegado aún |
 | D05 | GAS como lógica de ambos lados exige servidor Unreal o duplicación; GAS solo visual puede ayudar pero acopla conceptos. Proyección C++ propia representa contrato externo | **Proyección propia**; GAS aplazado. Servidor propio obligatorio por instrucción del usuario |
-| D06 | Autenticación propia: control y coste de proteger credenciales. OIDC gestionado: operación delegada, coste/proveedor. IdP autohospedado: protocolo estándar, mantenimiento propio | **OIDC estándar con proveedor por elegir**, sin inventar endpoints ni cuentas de prueba. Si se prefiere cuentas propias, diseño y revisión antes |
+| D06 | Autenticación propia: control y coste de proteger credenciales. OIDC gestionado: operación delegada, coste/proveedor. IdP autohospedado: protocolo estándar, mantenimiento propio | **OIDC estándar con proveedor por elegir**; cliente nativo con Code/PKCE y navegador externo. El proveedor autentica; el juego decide elegibilidad y sesión. Diseño de canje/revocación pendiente, sin inventar endpoints ni cuentas de prueba |
 | D07 | Un shard gigante: experiencia continua pero cuello. Zonas/instancias con shards: escalable pero transferencias y afinidad. Instancias de todo: menos mundo persistente | **Zonificación + shards por zona e instancias privadas**; propiedad exclusiva con fencing |
 | D08 | Stored procedures extensivas centralizan datos pero acoplan lógica; SQL transaccional en servicio permite tests/ownership; Redis como verdad perdería garantías | **PostgreSQL transaccional y Redis efímero**; versiones y licencias exactas antes de introducir dependencias |
 | D09 | Scripts C++: control/performance, recompilar contenido lógico. DSL declarativo: seguro si expresividad acotada. Lua/WASM: flexible y más sandbox/tooling | **Datos declarativos + estados C++** inicialmente; sandbox solo al aparecer una necesidad probada |
-| D10 | Windows cliente + Linux servidor reduce matriz; Windows/Linux servidor desde inicio detecta portabilidad pero duplica CI. Consolas amplían certificación/coste | **PC Windows cliente; CI del servidor configurada para Windows/Linux, ejecución remota pendiente**, producción Linux propuesta; otras plataformas fuera del slice |
+| D10 | Windows cliente + Linux servidor reduce matriz; Windows/Linux servidor desde inicio detecta portabilidad pero duplica CI. Consolas amplían certificación/coste | **PC Windows cliente; CI del servidor Windows/Linux**, ejecución acreditada por commit en `phase0-evidence.md`; producción Linux propuesta; otras plataformas fuera del slice |
 
 Las recomendaciones no están aceptadas por silencio. La siguiente fase espera validación del diseño y de las opciones
 con impacto. Detalles de transporte y datos: `data-and-protocol.md`. API/estado de capacidades UE: `ue58-verification.md`.
+
+## Validación pendiente, por ámbito
+
+El registro de aprobación debe identificar decisión, opción, fecha y mensaje del usuario; una prueba verde o un push
+no sustituyen esa aprobación. D01 está decidido por el usuario; D02–D10 siguen propuestos. Los trade-offs anteriores
+son opciones abiertas, no alternativas formalmente descartadas.
+
+Para preparar FASE 1 se solicita primero validar D02, D03, D04, D06, D08 y D10. Elegir OIDC no elige aún proveedor,
+tarifa, TTL ni mecanismo de sesión. El diseño específico deberá concretarlos y someter sus contratos a revisión
+antes de implementar identidad/red/persistencia. D05, D07 y D09 se concretarán antes de sus sistemas respectivos;
+ninguna decisión de FASE 0 autoriza implementar gameplay. [Matriz de cierre y responsables](phase0-acceptance.md).
 
 Decisiones aún del usuario: título/lore definitivo, hardware cliente mínimo, regiones/latencia objetivo, equipo y
 presupuesto, proveedor de identidad, infraestructura, monetización y licencia del código propio. Nada de ello se
