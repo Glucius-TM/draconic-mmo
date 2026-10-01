@@ -6,7 +6,6 @@ Prioridad: P0 bloquea exposición o integridad; P1 bloquea el siguiente hito; P2
 | ID | Prioridad / tipo | Pendiente y riesgo | Cierre verificable |
 |---|---|---|---|
 | F00 | P1 — decisión | arquitectura y decisiones D02–D10 propuestas | validación explícita del usuario antes de FASE 1 |
-| F01 | P1 — CI, cierre parcial | bootstrap remoto Windows/Linux/sanitizers aprobado; validar ejecución de esta mejora | workflow de la mejora ejecutado con resultados de cada job; ver `phase0-evidence.md` |
 | F02 | P1 — cliente | CI del motor UE y packaging no preparados; verificador local implementado y ejecutado | runner licenciado aislado, ejecución de código confiable, test con informe, build/cook del primer contenido |
 | F03 | P1 — dependencia | versiones, hashes, licencias TLS/Protobuf/SQL/Redis por seleccionar | matriz aprobada, lock y SBOM reproducibles |
 | F04 | P1 — producto | título, canon, alcance del slice y PC objetivo por elegir | brief aprobado con presupuesto y métricas |
@@ -28,3 +27,11 @@ Prioridad: P0 bloquea exposición o integridad; P1 bloquea el siguiente hito; P2
 
 Esta fase no instala servicios, compra hardware ni promete una fecha de lanzamiento. Las estimaciones y supuestos
 de equipo están en `roadmap.md`. Los estados de pruebas concretos se registran en `phase0-evidence.md`.
+
+## Cierres de esta mejora
+
+**F01 — CI remota: cerrado para los cimientos de FASE 0.** La
+[ejecución 36835323738](https://github.com/Glucius-TM/draconic-mmo/actions/runs/36835323738) completó 10/10 jobs,
+con MSVC/GCC/Clang Debug/Release, ASan/UBSan, instalación sin tests en ambos sistemas y tooling UE.
+El fallo previo de alcance de funciones PowerShell fue reproducido, corregido y comprobado en CI. Este cierre no
+cubre CI del motor (F02), toolchains herméticos (F08) ni distribución en máquina limpia (F09).

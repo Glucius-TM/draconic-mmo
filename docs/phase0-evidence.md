@@ -92,7 +92,24 @@ head `87dff1cbfb27fa9d57b76bab70996863b2996992`, completó **9 de 10 jobs**: C++
 falló la prueba de herramientas UE. GitHub invoca PowerShell mediante `-Command`, donde la closure de un caso ocultaba
 la función auxiliar `Save-CaseDocument`. Se reprodujo ese fallo localmente y se retiró la closure innecesaria:
 los casos son síncronos. La corrección pasa las 35 comprobaciones tanto con `-File` como con `-Command`.
-El resultado completo de la repetición corregida queda pendiente de confirmar.
+La [repetición corregida 36835323738](https://github.com/Glucius-TM/draconic-mmo/actions/runs/36835323738),
+head `d8ae2236214df6ac465f5fb48c69238880bb2a4d`, terminó **Success: 10/10 jobs** el 2026-10-01.
+El trigger es `pull_request`; checkout comprueba la integración propuesta con `main`. Se leyeron los logs efectivos:
+
+| Entorno / configuración | Evidencia ejecutada |
+| --- | --- |
+| Ubuntu 24.04 / GCC 13.3.0 / Debug y Release | 20/20 CTest en cada configuración |
+| Ubuntu 24.04 / Clang 18.1.3 / Debug y Release | 20/20 CTest en cada configuración |
+| Windows Server 2022 / MSVC 19.44.35229 / Debug y Release | 20/20 CTest en cada configuración |
+| Ubuntu 24.04 / Clang / ASan + UBSan | 20/20 CTest, sin fallo de sanitizadores |
+| Ubuntu 24.04 y Windows Server 2022 / `BUILD_TESTING=OFF` | build, instalación y ejecución aprobados en ambos |
+| Windows Server 2022 / verificador UE sin motor | 35/35 comprobaciones aprobadas |
+
+Se verificó la existencia de ocho artefactos: siete pares de informe JUnit/log CTest y la evidencia sintética de las
+herramientas. Se conservan 14 días; después deben reproducirse las pruebas. Las instalaciones independientes quedan
+en los logs de sus jobs. Las distintas configuraciones repiten la misma suite, no multiplican su cobertura lógica.
+Los cambios posteriores que solo documenten este resultado no añaden cobertura: consultar el estado del PR para la
+ejecución del último commit. Los logs de este run permiten reproducir qué fuentes y herramientas se comprobaron.
 
 El workflow conserva JUnit/logs y prueba instalación sin tests en Windows/Linux y herramientas UE sin motor. Las
 acciones se actualizaron a versiones con runtime Node 24 tras observar la deprecación del runtime de las anteriores;
@@ -109,7 +126,6 @@ tienen referencias oficiales UE 5.8 y contraste local en `ue58-verification.md`.
 
 ## No verificado o no implementado
 
-- Ejecución remota de las mejoras: pendiente de confirmar; ejecución del bootstrap acreditada arriba.
 - UE Game target, cooking, packaging, mapas, GPU/performance, navegación y reconciliación.
 - PostgreSQL/Redis reales, migraciones aplicadas, TLS/Protobuf, identidad, bots, carga y recuperación.
 - Sistemas de gameplay, contenido artístico, administración, despliegue y operación de producción.

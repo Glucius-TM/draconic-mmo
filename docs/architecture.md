@@ -109,7 +109,9 @@ El cliente envía intención, dirección y secuencia; nunca posición final, vel
 Autoridad valida estado, límites temporales, pendientes, colisiones, modo de locomoción y permisos.
 Snapshots incluyen tick servidor y último input procesado. El cliente corrige a ese estado, reejecuta inputs pendientes
 y suaviza solo la representación visual. Entidades remotas usan interpolación acotada, sin extrapolación ilimitada.
-Teletransportes son órdenes del servidor con cambio de epoch. Latencia no concede metros extra ni ataques adicionales.
+Teletransportes son órdenes del servidor que invalidan el historial anterior de predicción/input. El epoch de autoridad
+cambia al transferir o reasignar al propietario, no por un desplazamiento dentro de la misma autoridad. El contrato
+de movimiento detallará su propia generación de reinicio. Latencia no concede metros extra ni ataques adicionales.
 
 Riesgo principal: servidor sin Chaos necesita geometría de colisión/navegación propia coherente con el cliente.
 Propuesta: exportar offline volúmenes estáticos y malla de navegación con hash/versionado común. No suponer física
