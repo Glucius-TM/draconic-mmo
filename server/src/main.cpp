@@ -51,8 +51,19 @@ int check_config(const std::filesystem::path& path) {
 
 } // namespace
 
+#ifdef _WIN32
+// The narrow Windows entry point loses path characters outside the active code page.
+int wmain(int argc, wchar_t* argv[]) {
+    constexpr std::wstring_view help_option = L"--help";
+    constexpr std::wstring_view version_option = L"--version";
+    constexpr std::wstring_view check_command = L"check-config";
+#else
 int main(int argc, char* argv[]) {
-    if (argc == 2 && std::string_view(argv[1]) == "--help") {
+    constexpr std::string_view help_option = "--help";
+    constexpr std::string_view version_option = "--version";
+    constexpr std::string_view check_command = "check-config";
+#endif
+    if (argc == 2 && argv[1] == help_option) {
         std::cout << "Usage: draconic_foundation check-config <file>\n"
                      "       draconic_foundation --version\n"
                      "Offline foundation diagnostics only. No game or network services start.\n"
@@ -60,12 +71,12 @@ int main(int argc, char* argv[]) {
                      "error.\n";
         return 0;
     }
-    if (argc == 2 && std::string_view(argv[1]) == "--version") {
+    if (argc == 2 && argv[1] == version_option) {
         std::cout << "{\"component\":\"draconic_foundation\",\"version\":"
                   << draconic::json_string(DRACONIC_VERSION) << ",\"phase\":0}\n";
         return 0;
     }
-    if (argc == 3 && std::string_view(argv[1]) == "check-config") {
+    if (argc == 3 && argv[1] == check_command) {
         return check_config(std::filesystem::path(argv[2]));
     }
     return emit_error("invalid_arguments", 2);

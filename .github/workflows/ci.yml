@@ -2,6 +2,7 @@ name: C++ foundation
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -22,7 +23,7 @@ jobs:
         compiler: [g++, clang++]
         preset: [linux-debug, linux-release]
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Configure
@@ -30,7 +31,19 @@ jobs:
       - name: Build
         run: cmake --build --preset ${{ matrix.preset }} --parallel 2
       - name: Test
-        run: ctest --preset ${{ matrix.preset }}
+        run: |
+          mkdir -p .build/reports
+          ctest --preset ${{ matrix.preset }} --output-junit "$PWD/.build/reports/ctest.xml"
+      - name: Preserve test evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-${{ matrix.compiler }}-${{ matrix.preset }}
+          include-hidden-files: true
+          retention-days: 14
+          path: |
+            .build/reports/*.xml
+            .build/${{ matrix.preset }}/Testing/Temporary/LastTest.log
 
   windows:
     runs-on: windows-2022
@@ -40,7 +53,7 @@ jobs:
       matrix:
         preset: [windows-debug, windows-release]
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Configure
@@ -48,13 +61,25 @@ jobs:
       - name: Build
         run: cmake --build --preset ${{ matrix.preset }} --parallel 2
       - name: Test
-        run: ctest --preset ${{ matrix.preset }}
+        run: |
+          New-Item -ItemType Directory -Force .build/reports | Out-Null
+          ctest --preset ${{ matrix.preset }} --output-junit "$PWD/.build/reports/ctest.xml"
+      - name: Preserve test evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.preset }}
+          include-hidden-files: true
+          retention-days: 14
+          path: |
+            .build/reports/*.xml
+            .build/windows-msvc/Testing/Temporary/LastTest.log
 
   sanitizers:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Configure ASan and UBSan
@@ -65,4 +90,67 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
-        run: ctest --preset linux-sanitize
+        run: |
+          mkdir -p .build/reports
+          ctest --preset linux-sanitize --output-junit "$PWD/.build/reports/ctest.xml"
+      - name: Preserve test evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-sanitizers
+          include-hidden-files: true
+          retention-days: 14
+          path: |
+            .build/reports/*.xml
+            .build/linux-sanitize/Testing/Temporary/LastTest.log
+
+  install-without-tests:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and run installed CLI with testing disabled
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $suffix = ''
+          if ($IsWindows) {
+            cmake -S . -B .build/no-tests -G 'Visual Studio 17 2022' -A x64 '-DBUILD_TESTING=OFF'
+            $suffix = '.exe'
+          } else {
+            cmake -S . -B .build/no-tests -G Ninja '-DBUILD_TESTING=OFF' '-DCMAKE_BUILD_TYPE=Release'
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Configure failed' }
+          cmake --build .build/no-tests --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
+          $taskBuildPath = (Resolve-Path '.build/no-tests').Path.Replace('\', '/')
+          cmake "-DBUILD_DIR=$taskBuildPath" "-DINSTALL_PREFIX=$taskBuildPath/stage" `
+            '-DINSTALL_BINDIR=bin' '-DINSTALL_DATADIR=share' "-DEXECUTABLE_SUFFIX=$suffix" `
+            '-DCONFIG=Release' '-DEXPECTED_VERSION=0.1.0' -P cmake/CheckInstall.cmake
+          if ($LASTEXITCODE -ne 0) { throw 'Installed CLI validation failed' }
+
+  unreal-verification-tooling:
+    # Tests the verification scripts; this job does not compile or execute Unreal.
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test report rejection and process timeouts without an engine
+        shell: pwsh
+        run: ./tests/tooling/test-unreal-validation.ps1
+      - name: Preserve tooling evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unreal-verification-tooling
+          include-hidden-files: true
+          retention-days: 14
+          path: .build/tooling-tests/

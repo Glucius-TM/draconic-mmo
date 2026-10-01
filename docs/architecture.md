@@ -1,6 +1,6 @@
 # MMORPG dracónico — propuesta de arquitectura
 
-Fecha: 2026-09-29. **FASE 0. Estado: PROPUESTO, pendiente de validación.**
+Revisión: 2026-10-01. **FASE 0. Estado: PROPUESTO, pendiente de validación.**
 `draconic-mmo` es un identificador técnico provisional, no el título comercial.
 Repositorio nuevo y autónomo. No importa código, datos ni diseños de otros proyectos del usuario.
 
@@ -13,7 +13,8 @@ La referencia de profundidad sirve para detectar responsabilidades; no define f�
 
 FASE 0 implementa únicamente build, herramientas de diagnóstico offline y proyecto UE mínimo. No hay aún
 autenticación, sockets, persistencia ni gameplay. Los bloques siguientes son destino arquitectónico, no servicios
-existentes. Véase la evidencia real en [phase0-evidence.md](phase0-evidence.md).
+existentes. Véase la evidencia real en [phase0-evidence.md](phase0-evidence.md) y el criterio de cierre en
+[phase0-acceptance.md](phase0-acceptance.md). Compilar los cimientos no valida el diseño de los sistemas futuros.
 
 ## 2. Topología propuesta
 
@@ -47,8 +48,10 @@ existentes. Véase la evidencia real en [phase0-evidence.md](phase0-evidence.md)
 
 **Despliegue inicial recomendado:** identidad y gateway separados como límites de exposición; un proceso de mundo
 por zona/instancia; servicios de reino agrupados en un ejecutable modular. PostgreSQL y Redis son servicios reales
-externos. No un microservicio por sistema desde el primer día. La FASE 1 arrancará con un único mundo vacío y un
-único reino. Chat, subastas y grupos solo se extraen a procesos independientes por carga, aislamiento o equipos.
+externos. No un microservicio por sistema desde el primer día. Se propone que FASE 1 arranque con un único mundo
+vacío y un único reino, después de validar su diseño. Chat, subastas y grupos solo se extraen a procesos
+independientes por carga, aislamiento o equipos. El bloque de identidad integra un proveedor OIDC por elegir;
+las credenciales del proveedor no pertenecen al servidor del juego.
 
 Terminología propia: reino = población/economía persistente; zona = partición geográfica de simulación;
 shard = copia de una zona; instancia = sesión privada de actividad; celda de interés = vecindario visible.
@@ -56,25 +59,31 @@ La célula World Partition del cliente no es automáticamente una zona del servi
 
 ## 3. Límites y dependencias
 
-```text
-apps (composición, lifecycle) ---> application (casos de uso, transacciones)
-                                     |
-adapters (TLS, SQL, Redis) --------> ports <------ domain (reglas puras)
-                                     |
-                          foundation (IDs, tiempo, errores)
+Flechas de **dependencia de código**: `A -> B` significa que A puede importar B; no indica el recorrido de mensajes.
 
-protocol-generated ---> transport adapters ---> comandos validados ---> application
-client presentation ---> client session/transport ---> protocolo público
+```text
+apps -> application, adapters                 (composición de implementaciones)
+adapters -> application/ports, domain         (TLS, SQL, Redis implementan puertos)
+application -> application/ports, domain      (casos de uso y límites transaccionales)
+application/ports -> domain, foundation       (contratos con tipos propios)
+domain -> foundation                         (reglas puras; sin puertos de infraestructura)
+foundation -> biblioteca estándar C++
+transport adapter -> protocol-generated      (tipos generados terminan en el adaptador)
+
+Flujo de datos separado:
+bytes -> adapter/parser -> comando propio validado -> application -> domain
 ```
 
-Domain nunca incluye headers UE, SQL o sockets. Servidor independiente de Unreal Build Tool.
+Domain nunca incluye headers UE, SQL, sockets ni mensajes generados. Los contratos de salida viven en application;
+los adaptadores concretos se inyectan al componer el ejecutable. El cliente depende del contrato público a través
+de su transporte; no enlaza los módulos de dominio del servidor. Servidor independiente de Unreal Build Tool.
 No se comparte implementación de combate con el cliente: solo contratos públicos y predicción de movimiento cuando
 su diseño esté aprobado. Ningún catálogo privado de loot, IA o control administrativo se exporta al cliente.
 Separar estado persistente, definiciones de contenido inmutables versionadas y estado temporal de simulación.
 
 | Módulo futuro | Propiedad de datos / responsabilidad | Dependencias permitidas |
 |---|---|---|
-| identity | cuenta, credenciales, revocación, sesiones | PostgreSQL, proveedor TLS, política de rate limit |
+| identity | vínculo issuer/subject con cuenta local, elegibilidad, revocación y sesiones de juego | proveedor OIDC, PostgreSQL de identidad, límites de admisión; credenciales locales solo si se aprueba esa alternativa |
 | gateway | conexiones, límites, rutas, epochs de sesión | identidad, coordinador, transporte interno |
 | realm | elegibilidad y directorio de reinos | identity, catálogo de reinos |
 | character | creación, nombres, progresión durable | PostgreSQL; recibe resultados autorizados de mundo |
@@ -100,7 +109,9 @@ El cliente envía intención, dirección y secuencia; nunca posición final, vel
 Autoridad valida estado, límites temporales, pendientes, colisiones, modo de locomoción y permisos.
 Snapshots incluyen tick servidor y último input procesado. El cliente corrige a ese estado, reejecuta inputs pendientes
 y suaviza solo la representación visual. Entidades remotas usan interpolación acotada, sin extrapolación ilimitada.
-Teletransportes son órdenes del servidor con cambio de epoch. Latencia no concede metros extra ni ataques adicionales.
+Teletransportes son órdenes del servidor que invalidan el historial anterior de predicción/input. El epoch de autoridad
+cambia al transferir o reasignar al propietario, no por un desplazamiento dentro de la misma autoridad. El contrato
+de movimiento detallará su propia generación de reinicio. Latencia no concede metros extra ni ataques adicionales.
 
 Riesgo principal: servidor sin Chaos necesita geometría de colisión/navegación propia coherente con el cliente.
 Propuesta: exportar offline volúmenes estáticos y malla de navegación con hash/versionado común. No suponer física
@@ -175,6 +186,15 @@ de zona, más 30% de capacidad adicional ≈26 equivalentes; instancias y picos 
 No activar ese número de procesos por fórmula: el cuello depende de NPCs, interés, IA, ancho de banda y hardware.
 A 20 KiB/s enviados por jugador, 3.000 suponen ≈58,6 MiB/s de payload (≈492 Mbit/s) antes de TLS/TCP, retransmisiones
 y tráfico interno. 20 KiB/s es presupuesto provisional que hay que medir, no ancho garantizado.
+Los 26 equivalentes suponen distribución equilibrada y capacidad utilizable: no prueban tolerancia a perder un
+host, pues varios procesos pueden compartirlo. La concentración en una sola zona puede agotar CPU o interés
+aunque el resto del reino esté vacío. La admisión depende de la zona de destino además del total del reino.
+
+Antes de aceptar capacidad se fijarán hardware, builds y contenido; población de NPCs, densidad de jugadores,
+frecuencia de acciones y matriz RTT/pérdida. Se proponen cargas separadas de dispersión, concentración en una
+zona, reconexión masiva y caída de un host; cada una registrará tick p99, colas, memoria y bytes/s. El umbral
+de tick y el margen de recuperación se decidirán antes de medir, sin descartar los intervalos sobrecargados.
+Los clientes de carga deberán ejecutarse en máquinas separadas del servidor. En FASE 0 no existe este banco.
 
 Interés espacial mediante grid o estructura equivalente, filtros por fase/instancia y prioridad. En pelea densa,
 no replicar cada entidad a todos: topes y niveles de frecuencia. Afinidad de grupo para seleccionar shard;
@@ -218,6 +238,7 @@ conectado ni una DB real. Se exige ejecutar condiciones de rechazo además del c
 - Ficción original propuesta: [world-concept.md](world-concept.md).
 - Procedencia: [provenance.md](provenance.md).
 - Compilación: [build-and-test.md](build-and-test.md).
+- Matriz de requisitos, evidencia y cierre: [phase0-acceptance.md](phase0-acceptance.md).
 - Deuda y riesgos: [technical-debt.md](technical-debt.md).
 
 No se autoriza FASE 1 por la mera existencia de este documento.

@@ -1,6 +1,6 @@
 # MMORPG dracónico — datos y protocolo
 
-Estado: **diseño pendiente de validación**, 2026-09-29. Este documento define contratos originales para el proyecto nativo. No contiene migraciones ejecutables, mensajes generados ni una implementación de red. Los nombres de tablas son propuestas propias, no reproducciones de otro proyecto. Los presupuestos indicados son objetivos iniciales que deben medirse.
+Estado: **diseño pendiente de validación**, revisión 2026-10-01. Este documento define contratos originales para el proyecto nativo. No contiene migraciones ejecutables, mensajes generados ni una implementación de red. Los nombres de tablas son propuestas propias, no reproducciones de otro proyecto. Los presupuestos indicados son objetivos iniciales que deben medirse.
 
 ## 1. Decisiones que requieren validación
 
@@ -37,6 +37,16 @@ El cliente propone intenciones; no confirma resultados, saldos, daño, botín ni
 La identidad global y cada reino son límites de datos distintos. Dentro del reino, inventario, monedas, correo con adjuntos y subastas comparten inicialmente la misma base y frontera transaccional, aunque tengan módulos y permisos separados. Las claves foráneas solo protegen relaciones dentro de la misma base; una referencia a una cuenta global exige comprobación mediante el servicio de identidad y un proceso explícito para bajas o revocaciones.
 
 Las zonas no acceden a tablas ajenas mediante SQL libre. El servicio de persistencia valida identidad del proceso, reino, propietario, epoch y versión del agregado. Todas las consultas parametrizan valores y permiten identificadores SQL solo desde listas internas; nunca concatenan entrada del cliente. No hay conexiones ni consultas SQL por jugador y tick: pools acotados, guardados agrupados de estado no crítico y commits inmediatos para cambios económicos. El cliente recibe confirmación económica solo después del commit durable.
+
+### Identidad externa y sesión de juego
+
+La recomendación OIDC separa tres autoridades: el proveedor autentica a la persona; identity vincula `(issuer, subject)` a la cuenta y aplica suspensión/elegibilidad; el reino autoriza personaje y acciones. Autenticarse en el proveedor no concede acceso a un personaje ni capacidades GM. No se crean cuentas por un email recibido del cliente ni se fusionan vínculos automáticamente por coincidencia de email.
+
+Para el cliente nativo se propone Authorization Code con PKCE y navegador externo, sin secreto de cliente incrustado. Son requisitos documentados para aplicaciones nativas; redirect URI, proveedor y registro de cliente quedan por diseñar. [RFC 8252, §§4–8](https://www.rfc-editor.org/rfc/rfc8252.html).
+
+El futuro diseño debe identificar quién valida cada token, issuer permitido, firma/algoritmo, audiencia, vencimiento y correlación con el flujo iniciado; la validación de ID Token sigue el perfil OIDC seleccionado. Un ID Token dirigido al cliente no se acepta como credencial genérica del gateway. No basta decodificar un JWT. [Validación oficial de ID Token](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation).
+
+La emisión o canje de una sesión de juego requiere un contrato propio aprobado, con autenticación del solicitante, audiencia específica y límites de reutilización; no se inventa aquí un endpoint del proveedor. La revocación local debe cortar nuevas admisiones y acotar la vigencia de sesiones activas incluso si el token externo aún no ha vencido. Si el IdP o sus claves no pueden validarse, no se concede acceso nuevo; la continuidad de sesiones ya verificadas tendrá un plazo explícito. TTL, rotación, cierre de sesión y recuperación de cuenta se diseñarán antes de implementar; las pruebas con el proveedor real serán condiciones de cierre de FASE 1.
 
 ## 3. Modelo lógico de datos
 
@@ -100,7 +110,7 @@ Un lease es un permiso temporal; un epoch es una generación creciente que permi
 ```text
 Activa en A,e
    -> Barrera inicial: gateway congela la ruta del personaje y confirma la pausa
-   -> Preparada: A detiene nuevas acciones del personaje y confirma checkpoint
+   -> Preparada: A drena acciones en curso; barrera durable congela escrituras y confirma checkpoint
    -> Lista: B carga ese checkpoint, todavía sin simular ni conceder efectos
    -> Commit: transacción cambia propietario A,e -> B,e+1
    -> Barrera de ruta: gateway descarta resultados antiguos y activa B,e+1
@@ -111,11 +121,31 @@ El token de transferencia se genera en servidor, caduca y se consume una vez, li
 
 Cada commit duradero comprueba propietario, epoch y estado bajo la misma transacción que su cambio. La asignación usa el reloj de la autoridad persistente para vencimientos; los workers usan temporizadores monotónicos conservadores para detenerse. Incrementar epochs nunca reutiliza un valor anterior. Si falla la confirmación del cambio, el coordinador consulta el estado durable y reanuda idempotentemente.
 
+La comprobación no puede ser una lectura suelta seguida de otra transacción: mutación, renovación y reasignación deben serializar sobre el mismo registro de autoridad. Se propone bloquear ese registro, comprobar propietario/epoch/estado/plazo vigente y mantener el bloqueo hasta terminar el cambio. Así una reasignación espera a una mutación ya autorizada, o invalida la siguiente; ningún worker renueva un lease ya vencido como si siguiera vigente. Se limitará el tiempo de transacción para que la propia barrera no bloquee indefinidamente. No se mantiene una transacción SQL abierta mientras se espera una respuesta de red.
+
+La barrera durable rechaza escrituras de A posteriores al checkpoint, incluidas las que ya estaban en colas. B solo se activa desde ese checkpoint y generación confirmados. Una recuperación debe consultar también recibos y revisiones económicas: reproducir un checkpoint antiguo no puede reemplazar saldos ni inventario más recientes. La generación de conexión (`session_generation`) y la de autoridad (`authority_epoch`) son distintas; reconectar no confiere propiedad de simulación.
+
 Fencing de DB no basta: gateway y receptores entre zonas también rechazan comandos, snapshots y resultados con epochs viejos. La ruta del personaje se congela durante la barrera hasta que el gateway ha adoptado la nueva generación; una caché de presencia no autoriza el traspaso. Un worker aislado no puede enviar efectos directamente al cliente saltándose esa puerta. NPCs e instancias necesitan el mismo principio en el ámbito de propietario de zona/instancia.
+
+Las rutas del gateway también caducan: al perder comunicación con la autoridad no se conservan indefinidamente. El plazo debe dejar margen conservador para detener tráfico antes de la reasignación; tras reinicio se consulta estado vigente. Si no puede probarse una única ruta activa, se cierra la sesión antes de admitir otra. La política exacta de plazos y relojes necesita pruebas de pausa de proceso y partición; esta propuesta no demuestra aún exclusión mutua distribuida.
 
 Si A muere antes del checkpoint, se recupera desde el último checkpoint confirmado y una nueva generación. Puede perderse movimiento efímero; no una operación económica ya confirmada bajo la política de durabilidad acordada. Si B muere tras el commit, se recupera B con otra generación o se asigna un nuevo propietario; no se reactiva A con su epoch anterior. No se promete continuidad sin pausa durante particiones.
 
 El primer vertical slice usa límites de zona explícitos y una breve transición. Interacciones de combate a través de fronteras espaciales, fantasmas de entidades y transferencia transparente quedan para otro diseño validado. El estado durable de cooldowns, auras y elegibilidad necesario para impedir ventajas por reconexión debe formar parte del checkpoint del sistema correspondiente.
+
+### Matriz de fallo y resultado exigido
+
+Todos estos casos son **NO VERIFICADOS**: son criterios para la futura integración real, no tests ejecutados en FASE 0.
+
+| ID | Fallo inyectado | Resultado observable exigido |
+| --- | --- | --- |
+| A01 | A se pausa, vence el lease, B toma autoridad y A vuelve | Cero mutaciones o snapshots aceptados con epoch antiguo; no se renueva el permiso vencido |
+| A02 | Acción durable compite con barrera de checkpoint | O bien forma parte del estado confirmado, o se rechaza; no queda una mutación aceptada fuera del checkpoint/recibos recuperables |
+| A03 | Respuesta de commit se pierde y se repite la operación | Mismo recibo y un único efecto; la incertidumbre no se resuelve concediendo de nuevo |
+| A04 | B cae después de cambiar propietario, antes de abrir ruta | Se recupera con generación nueva; A no recupera su permiso anterior; el cliente permanece pausado |
+| A05 | Gateway conserva ruta antigua o reinicia durante relevo | No entrega resultados antiguos; reconstruye autoridad antes de admitir tráfico |
+| A06 | Redis pierde todas sus claves o PostgreSQL deja de responder | Perder caché no otorga derechos; continúan cuotas locales y validación durable. Sin PostgreSQL se rechazan mutaciones/admisiones; autoridad caducada se detiene |
+| A07 | Se restaura checkpoint anterior a una compra confirmada | Compra y custodia siguen conciliadas con el registro durable; no se reescribe la economía desde el snapshot |
 
 ## 7. Contrato de red propuesto
 

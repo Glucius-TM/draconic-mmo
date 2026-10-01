@@ -144,3 +144,26 @@ plataformas no instaladas no constituyen una validación de esas herramientas o 
 
 El código del cliente implementa exclusivamente registro del módulo y un smoke test de carga. No valida
 reconciliación, seguridad, conexiones, gameplay, packaging, rendimiento ni despliegue.
+
+## Verificación automatizada de la mejora de FASE 0 — 2026-10-01
+
+Se añadió `tools/unreal/verify.ps1` y `Validation.psm1`, PowerShell 7.2 o posterior. No añaden APIs Unreal ni lógica
+de juego: invocan el mismo UBT y `UnrealEditor-Cmd` documentados arriba. Comprueban UE 5.8.3 antes del build,
+resuelven rutas desde el script, acotan procesos, conservan logs y crean un directorio de informe con UTC/GUID.
+Las rutas para `Build.bat` rechazan metacaracteres que interpreta cmd; se admiten espacios. No se buscan ni terminan
+editores por nombre: un timeout termina exclusivamente el árbol del proceso iniciado por la herramienta.
+
+El validador exige salida cero, un informe fresco con el test exacto y contadores coherentes, ausencia de claves JSON
+duplicadas y ausencia de errores de arranque del motor. Un proceso que termina sin ejecutar la prueba produce fallo.
+Solo después de validar se escribe `verification.json`. [Uso y criterios completos](../client/README.md).
+
+**Ejecución real aprobada:** `.build/unreal/20260930T221609Z-821f451563c94c3f93de980b9c2659d4/`.
+UBT y editor terminaron con código 0. El informe exacto fue aceptado con `Success`; el intervalo del editor fue
+2026-09-30 22:16:17–22:17:16 UTC, equivalente al 2026-10-01 en Europe/Madrid. El motor sigue siendo UE 5.8.3,
+changelist 58210709. El primer intento del nuevo script falló por la composición de comillas de `cmd.exe`; se corrigió
+antes de este resultado y sus logs se conservan en la carpeta anterior, sin declarar ese intento verificado.
+
+`tests/tooling/test-unreal-validation.ps1` tiene 35 comprobaciones en Windows: informes sintéticos válidos/incorrectos,
+salida de proceso real, timeout y rechazo de versión distinta. Se usan para probar el verificador, no como sustituto
+de Unreal. CI ejecuta esos casos sin motor; el build/test del motor continúa siendo evidencia local. El timeout de su
+proceso de prueba permite diez segundos de arranque en runners cargados antes de terminar el proceso que espera sesenta.

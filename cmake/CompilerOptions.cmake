@@ -19,7 +19,7 @@ function(draconic_apply_options target)
         endif()
         if(DRACONIC_ENABLE_SANITIZERS)
             target_compile_options(${target} PRIVATE
-                -fsanitize=address,undefined -fno-omit-frame-pointer
+                -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer
             )
             target_link_options(${target} PRIVATE -fsanitize=address,undefined)
         endif()

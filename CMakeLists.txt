@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 3.24)
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(FATAL_ERROR "In-source builds are not supported. Use a preset or -B .build/<name>.")
+endif()
+
 project(DraconicMMO VERSION 0.1.0 LANGUAGES CXX)
 
 include(CTest)
+include(GNUInstallDirs)
 include(cmake/CompilerOptions.cmake)
 
 add_library(draconic_foundation STATIC
@@ -23,6 +29,11 @@ set_target_properties(draconic_foundation_cli PROPERTIES
     CXX_EXTENSIONS OFF
 )
 draconic_apply_options(draconic_foundation_cli)
+
+install(TARGETS draconic_foundation_cli
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(FILES server/config/development.conf
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/draconic-mmo/examples")
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

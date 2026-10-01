@@ -42,12 +42,16 @@ Las instrucciones del usuario prevalecen. No importar reglas, código ni datos d
 
 - Servidor: CMake + CTest; comandos exactos y presets en `docs/build-and-test.md`.
 - Cliente: Unreal Build Tool; comandos y limitaciones en `docs/ue58-verification.md`.
+- Usar `tools/unreal/verify.ps1` para comprobar el Editor y el test exacto con informes nuevos; no aceptar solo exit 0.
+  Ejecutar `tests/tooling/test-unreal-validation.ps1` si cambia el verificador. Sus fixtures no prueban Unreal.
 - Builds fuera de fuente en `.build/`; binarios UE en sus carpetas generadas ignoradas. No subir motores ni SDKs.
 - Ejecutar tests correspondientes al cambio, revisar errores y documentar lo realmente ejecutado.
 - CI automática del servidor en Windows/Linux; Unreal requiere runner licenciado dedicado antes de habilitar CI.
 - Estados permitidos: PROPUESTO, IMPLEMENTADO, VERIFICADO, NO VERIFICADO, BLOQUEADO. No decir production-ready
   sin evidencia de funcionalidad, seguridad, recuperación, carga y operación real.
 - Cada fase cierra con código compilable, tests ejecutados, documentación y deuda en `docs/technical-debt.md`.
+- Mantener la trazabilidad requisito/evidencia en `docs/phase0-acceptance.md`; no confundir aceptación técnica
+  con autorización para la fase siguiente. Conservar los informes de CI cuando fallen las pruebas.
 - No crear servicios que siempre devuelvan éxito ni listeners ficticios. Las herramientas offline deben decirlo.
 - Cambios de fase, despliegue, publicación y decisiones irreversibles requieren la autorización correspondiente.
 
