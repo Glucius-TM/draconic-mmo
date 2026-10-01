@@ -75,7 +75,8 @@ Invoke-ReportCase 'not-run-test-with-success-summary' { param($c) $c.Document.te
 Invoke-ReportCase 'wrong-state-case' { param($c) $c.Document.tests[0].state = 'success'; Save-CaseDocument $c }
 foreach ($counter in @('succeededWithWarnings', 'failed', 'notRun', 'inProcess')) {
     $field = $counter
-    Invoke-ReportCase "aggregate-$field" { param($c) $c.Document[$field] = 1; Save-CaseDocument $c }.GetNewClosure()
+    # Cases run synchronously. A module closure would hide script-local helpers under -Command (CI).
+    Invoke-ReportCase "aggregate-$field" { param($c) $c.Document[$field] = 1; Save-CaseDocument $c }
 }
 Invoke-ReportCase 'inconsistent-success-count' { param($c) $c.Document.succeeded = 2; Save-CaseDocument $c }
 Invoke-ReportCase 'missing-aggregate-count' { param($c) $c.Document.Remove('notRun'); Save-CaseDocument $c }

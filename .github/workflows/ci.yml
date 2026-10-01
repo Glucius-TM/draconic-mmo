@@ -23,7 +23,7 @@ jobs:
         compiler: [g++, clang++]
         preset: [linux-debug, linux-release]
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Configure
@@ -36,7 +36,7 @@ jobs:
           ctest --preset ${{ matrix.preset }} --output-junit "$PWD/.build/reports/ctest.xml"
       - name: Preserve test evidence
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: linux-${{ matrix.compiler }}-${{ matrix.preset }}
           include-hidden-files: true
@@ -53,7 +53,7 @@ jobs:
       matrix:
         preset: [windows-debug, windows-release]
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Configure
@@ -66,7 +66,7 @@ jobs:
           ctest --preset ${{ matrix.preset }} --output-junit "$PWD/.build/reports/ctest.xml"
       - name: Preserve test evidence
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.preset }}
           include-hidden-files: true
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Configure ASan and UBSan
@@ -95,7 +95,7 @@ jobs:
           ctest --preset linux-sanitize --output-junit "$PWD/.build/reports/ctest.xml"
       - name: Preserve test evidence
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: linux-sanitizers
           include-hidden-files: true
@@ -112,7 +112,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, windows-2022]
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Build and run installed CLI with testing disabled
@@ -140,7 +140,7 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Test report rejection and process timeouts without an engine
@@ -148,7 +148,7 @@ jobs:
         run: ./tests/tooling/test-unreal-validation.ps1
       - name: Preserve tooling evidence
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: unreal-verification-tooling
           include-hidden-files: true

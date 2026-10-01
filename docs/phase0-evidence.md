@@ -86,9 +86,17 @@ coincide exactamente con el commit local inicial `6434a7a`. La
 tiene **7 jobs aprobados**: MSVC Debug/Release, GCC Debug/Release, Clang Debug/Release y ASan/UBSan.
 Esa ejecución corresponde a los **12 tests originales**, no acredita los 20 tests de esta mejora.
 
-La mejora se prepara en `phase0-hardening`, con evidencia de la nueva ejecución pendiente de publicación/verificación.
-Su workflow amplía la matriz con instalación sin tests en Windows/Linux y verificación de las herramientas UE sin motor,
-y conserva JUnit/logs. No hay job de compilación del motor UE en CI. La evidencia del motor sigue siendo local.
+La mejora está publicada en [PR #1](https://github.com/Glucius-TM/draconic-mmo/pull/1), rama `phase0-hardening`.
+La primera [ejecución ampliada 36834891088](https://github.com/Glucius-TM/draconic-mmo/actions/runs/36834891088),
+head `87dff1cbfb27fa9d57b76bab70996863b2996992`, completó **9 de 10 jobs**: C++/sanitizers/instalación aprobados;
+falló la prueba de herramientas UE. GitHub invoca PowerShell mediante `-Command`, donde la closure de un caso ocultaba
+la función auxiliar `Save-CaseDocument`. Se reprodujo ese fallo localmente y se retiró la closure innecesaria:
+los casos son síncronos. La corrección pasa las 35 comprobaciones tanto con `-File` como con `-Command`.
+El resultado completo de la repetición corregida queda pendiente de confirmar.
+
+El workflow conserva JUnit/logs y prueba instalación sin tests en Windows/Linux y herramientas UE sin motor. Las
+acciones se actualizaron a versiones con runtime Node 24 tras observar la deprecación del runtime de las anteriores;
+versiones y commits en `provenance.md`. No hay job de compilación del motor UE en CI; su evidencia sigue siendo local.
 
 ## Verificación de diseño y limpieza
 
